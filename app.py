@@ -21,7 +21,7 @@ model = genai.GenerativeModel(
     system_instruction=SYSTEM_PROMPT
 )
 
-# 2. Configure WhatsApp Credentials (with your specific fallback variables)
+# 2. Configure WhatsApp Credentials
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "EAAWKp0r7WfEBRtr5Wwd8ZAKjXl9tT6NpPIxcUkWUavliJlZC7FC3FYYghA8Vezog8oZC4IuYpUCRbOx4Vz9qFQPrWNdYZA6EHs3Q3EgbEleFMKa7B4ICoN5dwgZBZAoT7PoZAdMlpBVdtqnlSJrIpZAvQDZBdhWZCNKOlQ347pLXrLTjl0G6ZA452tbQnrGX5GMxrmv3hPZAGc72hX4XCL2TMTMGhtCqXszYat0wl0ikWljreL3PUBre0zGdeYtFDAxkEccpXAyMbswHPIqlkvEpjQAwz4u1")
 PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID", "1205812355947194")
 VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "clinic_reception_123")
@@ -49,45 +49,44 @@ def handle_whatsapp_message():
     print("Received incoming payload:", body)
     
     try:
-        # FIXED: Added brackets to correctly parse Meta's list format
-        entry = body["entry"]["changes"]["value"]
-        if "messages" in entry:
-            message = entry["messages"]
-            patient_phone = message["from"]
-            
-            # Ensure it is a text message
-            if message["type"] == "text":
-                patient_text = message["text"]["body"]
-                print(f"Patient text received: {patient_text}")
+        # FIXED CRASH HERE: Correctly added index array formatting for Meta's payload structure
+        if "entry" in body and body["entry"]:
+            entry = body["entry"]
+            if "changes" in entry and entry["changes"]:
+                change_value = entry["changes"]["value"]
                 
-                # Ask Gemini for the response
-                ai_response = model.generate_content(patient_text).text
-                print(f"Gemini response generated: {ai_response}")
-                
-                # Send the answer back to WhatsApp
-                send_whatsapp_message(patient_phone, ai_response)
-                
+                if "messages" in change_value and change_value["messages"]:
+                    message = change_value["messages"]
+                    patient_phone = message["from"]
+                    
+                    if message["type"] == "text":
+                        patient_text = message["text"]["body"]
+                        print(f"Patient text received: {patient_text}")
+                        
+                        # Ask Gemini for the response
+                        ai_response = model.generate_content(patient_text).text
+                        print(f"Gemini response generated: {ai_response}")
+                        
+                        # Send the answer back to WhatsApp
+                        send_whatsapp_message(patient_phone, ai_response)
+                        
     except Exception as e:
         print(f"Error processing message: {e}")
         
     return jsonify({"status": "success"}), 200
 
 def send_whatsapp_message(to_phone, text_content):
-    # Updated to use official Graph API endpoint with the proper path structure
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
-    
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json"
     }
-    
     payload = {
         "messaging_product": "whatsapp",
         "to": to_phone,
         "type": "text",
         "text": {"body": text_content}
     }
-    
     response = requests.post(url, json=payload, headers=headers)
     print(f"Sent message status to {to_phone}. Response text: {response.text}")
 
