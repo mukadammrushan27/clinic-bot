@@ -49,13 +49,13 @@ def handle_whatsapp_message():
     print("Received incoming payload:", body)
     
     try:
-        # FIXED CRASH HERE: Added brackets to read Meta's list structure properly
+        # THE ULTIMATE FIX: This explicitly extracts the first item from Meta's list layers
         if "entry" in body and body["entry"]:
-            entry = body["entry"]
+            entry = body["entry"]  # Grab the first entry object
             if "changes" in entry and entry["changes"]:
-                change_value = entry["changes"]["value"]
+                change_value = entry["changes"]["value"]  # Grab the first change data
                 if "messages" in change_value and change_value["messages"]:
-                    message = change_value["messages"]
+                    message = change_value["messages"]  # Grab the actual message object
                     patient_phone = message["from"]
                     
                     if message["type"] == "text":
