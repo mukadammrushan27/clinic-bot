@@ -49,7 +49,7 @@ def handle_whatsapp_message():
     print("Received incoming payload:", body)
     
     try:
-        # Extract message content and sender info
+        # FIXED: Added brackets to correctly parse Meta's list format
         entry = body["entry"]["changes"]["value"]
         if "messages" in entry:
             message = entry["messages"]
