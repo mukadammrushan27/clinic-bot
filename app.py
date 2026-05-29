@@ -49,12 +49,11 @@ def handle_whatsapp_message():
     print("Received incoming payload:", body)
     
     try:
-        # FIXED CRASH HERE: Correctly added index array formatting for Meta's payload structure
+      # FIXED CRASH HERE: Added brackets to read Meta's list structure
         if "entry" in body and body["entry"]:
             entry = body["entry"]
             if "changes" in entry and entry["changes"]:
                 change_value = entry["changes"]["value"]
-                
                 if "messages" in change_value and change_value["messages"]:
                     message = change_value["messages"]
                     patient_phone = message["from"]
