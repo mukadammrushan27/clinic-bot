@@ -6,7 +6,6 @@ import google.generativeai as genai
 app = Flask(__name__)
 
 # 1. Configure your Google Gemini API
-# Get your free key from https://google.com
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 # Your Mira Road Clinic System Instructions
@@ -22,10 +21,10 @@ model = genai.GenerativeModel(
     system_instruction=SYSTEM_PROMPT
 )
 
-# 2. Configure WhatsApp Credentials (from Meta Developer Dashboard)
-WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
-PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID")
-VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "my_secret_token_123") # You invent this password
+# 2. Configure WhatsApp Credentials (with your specific fallback variables)
+WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "EAAWKp0r7WfEBRtr5Wwd8ZAKjXl9tT6NpPIxcUkWUavliJlZC7FC3FYYghA8Vezog8oZC4IuYpUCRbOx4Vz9qFQPrWNdYZA6EHs3Q3EgbEleFMKa7B4ICoN5dwgZBZAoT7PoZAdMlpBVdtqnlSJrIpZAvQDZBdhWZCNKOlQ347pLXrLTjl0G6ZA452tbQnrGX5GMxrmv3hPZAGc72hX4XCL2TMTMGhtCqXszYat0wl0ikWljreL3PUBre0zGdeYtFDAxkEccpXAyMbswHPIqlkvEpjQAwz4u1")
+PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID", "1205812355947194")
+VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "clinic_reception_123")
 
 # Meta WhatsApp Webhook Verification
 @app.route("/webhook", methods=["GET"])
@@ -34,28 +33,36 @@ def verify_webhook():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
     
+    print(f"Received verification ping. Mode: {mode}, Token: {token}")
+    
     if mode == "subscribe" and token == VERIFY_TOKEN:
+        print("Webhook verified successfully!")
         return challenge, 200
+    
+    print("Webhook verification failed mismatch.")
     return "Verification failed", 403
 
 # Handle incoming WhatsApp Messages
 @app.route("/webhook", methods=["POST"])
 def handle_whatsapp_message():
     body = request.get_json()
+    print("Received incoming payload:", body)
     
     try:
         # Extract message content and sender info
-        entry = body["entry"][0]["changes"][0]["value"]
+        entry = body["entry"]["changes"]["value"]
         if "messages" in entry:
-            message = entry["messages"][0]
+            message = entry["messages"]
             patient_phone = message["from"]
             
             # Ensure it is a text message
             if message["type"] == "text":
                 patient_text = message["text"]["body"]
+                print(f"Patient text received: {patient_text}")
                 
                 # Ask Gemini for the response
                 ai_response = model.generate_content(patient_text).text
+                print(f"Gemini response generated: {ai_response}")
                 
                 # Send the answer back to WhatsApp
                 send_whatsapp_message(patient_phone, ai_response)
@@ -66,18 +73,23 @@ def handle_whatsapp_message():
     return jsonify({"status": "success"}), 200
 
 def send_whatsapp_message(to_phone, text_content):
-    url = f"https://facebook.com{PHONE_NUMBER_ID}/messages"
+    # Updated to use official Graph API endpoint with the proper path structure
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+    
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json"
     }
+    
     payload = {
         "messaging_product": "whatsapp",
         "to": to_phone,
         "type": "text",
         "text": {"body": text_content}
     }
-    requests.post(url, json=payload, headers=headers)
+    
+    response = requests.post(url, json=payload, headers=headers)
+    print(f"Sent message status to {to_phone}. Response text: {response.text}")
 
 if __name__ == "__main__":
     app.run(port=5000)
